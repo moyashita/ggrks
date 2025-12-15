@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Google</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --text:#202124; --sub:#3c4043;
+  --border:#dfe1e5; --border2:#dadce0;
+  --btn:#f8f9fa; --btnText:#3c4043;
+  --shadow2:0 1px 6px rgba(32,33,36,.18);
+}
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
+body{
+  margin:0; background:#fff; color:var(--text);
+  font-family: Roboto, Arial, "Noto Sans JP", Meiryo, sans-serif;
+}
+.page{ min-height:100%; display:flex; flex-direction:column; }
+.center{
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  padding:0 16px;
+}
+.logo{ height:92px; margin-bottom:26px; user-select:none; }
+
+.searchWrap{ width:min(584px,92vw); }
+.searchBar{
+  height:44px; padding:0 16px;
+  border:1px solid var(--border);
+  border-radius:24px;
+  display:flex; align-items:center;
+}
+.searchBar:hover{
+  box-shadow:var(--shadow2);
+  border-color:transparent;
+}
+.q{
+  width:100%;
+  border:0; outline:0;
+  font-size:16px;
+  background:transparent;
+  color:var(--text);
+}
+
+.buttons{
+  display:flex;
+  justify-content:center;
+  gap:12px;
+  margin-top:18px;
+  flex-wrap:wrap;
+}
+button{
+  height:36px;
+  padding:0 16px;
+  background:var(--btn);
+  color:var(--btnText);
+  border:1px solid var(--btn);
+  border-radius:4px;
+  font-size:14px;
+  cursor:pointer;
+}
+button:hover{
+  border:1px solid var(--border2);
+  box-shadow:0 1px 1px rgba(0,0,0,.1);
+}
+button:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+  box-shadow:none;
+}
+
+.creatorBox{
+  width:min(584px,92vw);
+  margin-top:16px;
+  display:none;
+}
+.shareRow{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.shareUrl{
+  flex:1;
+  min-width:260px;
+  height:36px;
+  border:1px solid var(--border2);
+  border-radius:6px;
+  padding:0 10px;
+  font-size:13px;
+}
+
+.viewerSteps{
+  width:min(584px,92vw);
+  margin-top:26px;
+  font-size:14px;
+  color:var(--sub);
+  line-height:1.8;
+  display:none;
+}
+.line{
+  opacity:0;
+  transform:translateY(6px);
+  transition:opacity .45s ease, transform .45s ease;
+}
+.line.show{
+  opacity:1;
+  transform:none;
+}
+.line b{ color:var(--text); }
+
+.mouse{
+  position:fixed;
+  width:22px; height:22px;
+  pointer-events:none;
+  display:none;
+  transform:translate(-50%,-50%);
+  z-index:9999;
+}
+.clickRing{
+  position:fixed;
+  width:8px; height:8px;
+  border:2px solid rgba(0,0,0,.35);
+  border-radius:50%;
+  transform:translate(-50%,-50%);
+  opacity:0;
+  pointer-events:none;
+  z-index:9998;
+}
+.clickRing.pulse{
+  animation:pulse .35s ease-out forwards;
+}
+@keyframes pulse{
+  from{opacity:.6; transform:translate(-50%,-50%) scale(1);}
+  to{opacity:0; transform:translate(-50%,-50%) scale(4.8);}
+}
+</style>
+</head>
+
+<body>
+<img id="fakeMouse" class="mouse"
+src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cpath d='M4 2l16 10-9 2 3 8-3 1-3-8-4 8V2z'/%3E%3C/svg%3E">
+<div id="clickRing" class="clickRing"></div>
+
+<div class="page">
+  <div class="center">
+    <img class="logo"
+      src="https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png" alt="Google">
+
+    <div class="searchWrap">
+      <div class="searchBar" id="searchBar">
+        <input id="q" class="q" type="text" autocomplete="off" spellcheck="false">
+      </div>
+
+      <div class="buttons">
+        <button id="btnSearch">Google 検索</button>
+        <button id="btnLucky" disabled>I'm Feeling Lucky</button>
+      </div>
+
+      <div class="creatorBox" id="creatorBox">
+        <div class="shareRow">
+          <input id="shareUrl" class="shareUrl" type="text" readonly>
+          <button id="btnCopy" disabled>URLをコピー</button>
+        </div>
+      </div>
+
+      <div class="viewerSteps" id="viewerSteps" aria-live="polite">
+        <div class="line" id="step1"><b>ステップ 1:</b> 質問（検索語）を入力</div>
+        <div class="line" id="step2"><b>ステップ 2:</b> Google 検索 ボタンをクリック</div>
+        <div class="line" id="comeon">…ね？そんなに難しくないでしょ？</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+
+  const q = $("q");
+  const bar = $("searchBar");
+  const btnSearch = $("btnSearch");
+  const creatorBox = $("creatorBox");
+  const shareUrl = $("shareUrl");
+  const btnCopy = $("btnCopy");
+  const steps = $("viewerSteps");
+  const step1 = $("step1");
+  const step2 = $("step2");
+  const comeon = $("comeon");
+  const mouse = $("fakeMouse");
+  const ring = $("clickRing");
+
+  const url = new URL(location.href);
+  const initialQ = url.searchParams.get("q") || "";
+  const mode = url.searchParams.get("mode") || "";
+
+  const SPEED = {
+    start_delay: 650,
+    mouse_steps: 70,
+    mouse_ms: 18,
+    after_mouse_pause: 420,
+    typing_min: 160,
+    typing_max: 280,
+    after_typing_pause: 520
+  };
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  let mousePos = { x: 80, y: 80 };
+
+  function buildShareLink(query){
+    const u = new URL(location.href);
+    u.searchParams.set("q", query);
+    u.searchParams.set("mode", "play");
+    return u.toString();
+  }
+
+  function clickPulse(x,y){
+    ring.style.left = x + "px";
+    ring.style.top  = y + "px";
+    ring.classList.remove("pulse");
+    void ring.offsetWidth;
+    ring.classList.add("pulse");
+  }
+
+  async function moveTo(el){
+    const r = el.getBoundingClientRect();
+    const sx = mousePos.x, sy = mousePos.y;
+    const tx = r.left + Math.min(40, r.width * 0.25);
+    const ty = r.top  + r.height * 0.55;
+
+    mouse.style.display = "block";
+
+    for(let i=0;i<=SPEED.mouse_steps;i++){
+      const t = i / SPEED.mouse_steps;
+      const eased = t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2)/2;
+      mouse.style.transform =
+        `translate(${sx + (tx - sx) * eased}px,${sy + (ty - sy) * eased}px)`;
+      await sleep(SPEED.mouse_ms);
+    }
+
+    mousePos = { x: tx, y: ty };
+    await sleep(SPEED.after_mouse_pause);
+    mouse.style.display = "none";
+    return mousePos;
+  }
+
+  async function typeText(txt){
+    q.value = "";
+    for(const ch of txt){
+      q.value += ch;
+      await sleep(SPEED.typing_min + Math.random() * (SPEED.typing_max - SPEED.typing_min));
+    }
+  }
+
+  async function play(query){
+    if (!query) return;
+
+    q.value = "";
+    steps.style.display = "block";
+
+    mousePos = { x: 80, y: 80 };
+    const p1 = await moveTo(bar);
+    clickPulse(p1.x, p1.y);
+    q.focus();
+
+    step1.classList.add("show");
+    await sleep(260);
+
+    await typeText(query);
+    await sleep(SPEED.after_typing_pause);
+
+    const p2 = await moveTo(btnSearch);
+    clickPulse(p2.x, p2.y);
+    await sleep(140);
+
+    step2.classList.add("show");
+    await sleep(220);
+    comeon.classList.add("show");
+    await sleep(1500);
+
+    location.href =
+      "https://www.google.com/search?q=" + encodeURIComponent(query) + "&hl=ja";
+  }
+
+  async function copyToClipboard(text){
+    if (navigator.clipboard) return navigator.clipboard.writeText(text);
+    shareUrl.select();
+    document.execCommand("copy");
+  }
+
+  if (mode === "play" && initialQ) {
+    creatorBox.style.display = "none";
+    setTimeout(() => play(initialQ), 650);
+  } else {
+    steps.style.display = "none";
+    if (initialQ) q.value = initialQ;
+
+    btnSearch.addEventListener("click", () => {
+      const query = q.value.trim();
+      if (!query){ q.focus(); return; }
+      shareUrl.value = buildShareLink(query);
+      creatorBox.style.display = "block";
+      btnCopy.disabled = false;
+    });
+
+    q.addEventListener("keydown", e => {
+      if (e.key === "Enter"){
+        e.preventDefault();
+        btnSearch.click();
+      }
+    });
+
+    btnCopy.addEventListener("click", async () => {
+      if (!shareUrl.value) return;
+      try{
+        await copyToClipboard(shareUrl.value);
+        btnCopy.textContent = "コピー済み";
+        setTimeout(() => btnCopy.textContent = "URLをコピー", 1200);
+      }catch(e){
+        shareUrl.focus();
+        shareUrl.select();
+      }
+    });
+  }
+})();
+</script>
+</body>
+</html>
